@@ -8,20 +8,31 @@
 
 @code {
 
-    private Guid username = Guid.NewGuid();
     private string newMessage;
     private HubConnection _hub;
-
-
-    List<Message> ChatItems = new List<Message>()
-        {
-            new Message {MessageBody = "Hello there", TimeStamp = DateTime.Now},
-            new Message {MessageBody = "Good Afternoon", TimeStamp = DateTime.Now}
-        };
-
-    private void addMessage(string message)
+    private bool isActive;
+    private UserModel user = new UserModel()
     {
-        ChatItems.Add(new Message { MessageBody = message });
+            UserID = new Guid()
+    };
+
+
+    List<MessageModel> ChatItems = new List<MessageModel>();
+
+    private async Task addMessage(string message)
+    {
+        //Below line would add message to our list
+        //ChatItems.Add(new MessageModel { MessageBody = message });
+
+        MessageModel newMessage = new MessageModel { MessageBody = message };
+        newMessage.Sender = user.UserName;
+        newMessage.TimeStamp = DateTime.Now;
+
+        if (_hub != null || isActive == false)
+        {
+            //Sending messages to the ChatHub
+            await _hub.SendAsync("SendMessage", newMessage);
+        }  
     }
 
     public async Task startChatting()
@@ -31,7 +42,9 @@
             _hub = new HubConnectionBuilder()
             .WithUrl(_nav.BaseUri.TrimEnd('/') + ChatHub.HubPath)
             .Build();
+            _hub.On<MessageModel>("ReceiveMessage", ReceiveMessage);
             await _hub.StartAsync();
+            isActive = true;
         }
         catch (Exception e)
         {
@@ -39,35 +52,55 @@
         }
     }
 
+    private void ReceiveMessage(MessageModel message)
+    {
+        if (isActive)
+        {
+            ChatItems.Add(message);
+            StateHasChanged();
+        }
+    }
 }
 
 <h3>Chat</h3>
 
-<div class="container-lg">
-    <div class="row bg-dark">
-        <div class="col-2 p-2">
-            <div class="text-center">
-                <img src="https://picsum.photos/id/237/75/75" class="rounded-circle border border-4 border-light" alt="Profile Picture" />
+<div class="container p-2">
+    <div class="row">
+        <div class="col-8">
+            <input class="form-control" type="text" placeholder="Enter your username..." @bind="user.UserName"/>
+        </div>
+        <div class="col-4">
+            <button class="btn btn-dark" type="button" id="startChatting" @onclick="() => startChatting()">Start Chatting...</button>
+        </div>
+    </div>
+</div>
+
+@if (isActive)
+    {
+    <div class="container-lg">
+        <div class="row bg-dark">
+            <div class="col-2 p-2">
+                <div class="text-center">
+                    <img src="https://picsum.photos/id/237/75/75" class="rounded-circle border border-4 border-light" alt="Profile Picture" />
+                </div>
+            </div>
+            <div class="col p-4">
+                <span class="text text-lg text-light">@user.UserName</span>
+                <br />
             </div>
         </div>
-        <div class="col p-4">
-            <span class="text text-lg text-light">@username.ToString()</span>
-            <br />
-            <span class="small text-light mt-3">@ChatItems.Count new messages...</span>
+
+        <div class="container">
         </div>
-    </div>
-
-    <div class="container">
-        <button class="btn btn-dark" type="button" id="startChatting" @onclick="() => startChatting()">Start Chatting...</button>
-    </div>
-
-    <div class="row">
+    
+        <div class="row">
         <div class="col h-25">
             <div class="container-fluid">
-                @foreach (Message item in ChatItems)
+                @foreach (MessageModel item in ChatItems)
             {
                 <div class="row">
                     <div class="col m-4 p-4 bg-info rounded-pill">
+                        <span class="text-light">@item.Sender:</span>
                         <span class="text-light">@item.MessageBody</span>
                         <br />
                         <span class="text-light small">@item.TimeStamp.ToString("dd/MM/yyyy hh:mm:ss")</span>
@@ -86,6 +119,7 @@
         </div>
     </div>
 </div>
+}
 
 
 

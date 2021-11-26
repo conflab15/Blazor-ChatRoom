@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
+using BlazorChatRoom.Data;
 
 namespace BlazorChatRoom.Hubs
 {
@@ -21,6 +22,11 @@ namespace BlazorChatRoom.Hubs
         {
             Console.WriteLine($"{Context.ConnectionId} Disconnected!");
             await base.OnDisconnectedAsync(exception); //Disconnected from the main hub
+        }
+
+        public async Task SendMessage(MessageModel message)
+        {
+            await Clients.All.SendAsync("ReceiveMessage", message);
         }
     }
 }
